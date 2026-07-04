@@ -1,0 +1,19 @@
+# Secrets — never commit these
+.env
+**/.env
+credentials.json
+**/credentials.json
+
+# Node
+node_modules/
+dist/
+
+# Python (for the main app later)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Misc
+.DS_Store
+*.log

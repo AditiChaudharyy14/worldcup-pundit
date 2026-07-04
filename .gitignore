@@ -1,0 +1,25 @@
+# Secrets — never commit these
+.env
+**/.env
+credentials.json
+**/credentials.json
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+app/txline.db
+
+# Node
+node_modules/
+dist/
+
+# Misc
+.DS_Store
+*.log
+
+# Claude Code local (per-machine) settings
+.claude/settings.local.json
+**/.claude/settings.local.json
