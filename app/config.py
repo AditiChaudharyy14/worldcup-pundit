@@ -57,6 +57,26 @@ class Settings(BaseSettings):
     pundit_max_tokens: int = 150
     commentary_batch_window_seconds: int = 60
 
+    # Discord bot (see bot.py / handlers.py / game.py). Plain env var names
+    # (not TXLINE_APP_-prefixed) since they're the platform's own convention.
+    # Only required when actually running the bot or replay --broadcast.
+    discord_bot_token: SecretStr | None = Field(default=None, validation_alias="DISCORD_BOT_TOKEN")
+    # Single channel used for every fixture's pundit/Hi-Lo posts (see the
+    # project decision to keep one designated channel rather than one per
+    # fixture, for this single-test-server hackathon build).
+    discord_channel_id: int | None = Field(default=None, validation_alias="DISCORD_CHANNEL_ID")
+    # Optional: if set, slash commands sync instantly to this guild instead of
+    # up to an hour globally -- set this to "WC Pundit Test"'s guild ID.
+    discord_guild_id: int | None = Field(default=None, validation_alias="DISCORD_GUILD_ID")
+
+    # Languages broadcast for a fixture nobody has explicitly followed yet
+    # (e.g. fresh --broadcast demo runs) -- shows off all three at once.
+    default_broadcast_langs: list[str] = ["en", "ne", "hi"]
+
+    # Hi-Lo streak game (see game.py): combined-goals-per-half line for the
+    # "more or fewer" question.
+    hilo_goals_line: float = 2.0
+
 
 class AppConfig(BaseModel):
     settings: Settings

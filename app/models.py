@@ -145,7 +145,7 @@ class OddsUpdate(BaseModel):
     Pct: list[str] = []
 
 
-EventType = Literal["GOAL", "RED_CARD", "MATCH_START", "MATCH_END", "ODDS_SWING"]
+EventType = Literal["GOAL", "RED_CARD", "MATCH_START", "HALF_TIME", "MATCH_END", "ODDS_SWING"]
 
 
 class Event(BaseModel):

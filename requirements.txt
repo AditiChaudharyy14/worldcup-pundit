@@ -3,6 +3,7 @@ pydantic>=2.13,<3
 pydantic-settings>=2.14,<3
 aiosqlite>=0.22,<0.23
 anthropic>=0.116,<0.117
+discord.py>=2.4,<2.5
 
 pytest>=9.1,<10
 pytest-asyncio>=1.4,<2

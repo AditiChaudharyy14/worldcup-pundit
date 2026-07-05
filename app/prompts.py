@@ -17,6 +17,13 @@ LANGUAGE_NAMES = {
     "hi": "Hindi",
 }
 
+# Discord button/embed labels: flag emoji + native script name (bot.py/handlers.py).
+LANGUAGE_LABELS = {
+    "en": "🇬🇧 English",
+    "ne": "🇳🇵 नेपाली",
+    "hi": "🇮🇳 हिंदी",
+}
+
 _BASE_PERSONA = (
     "You are a sharp, witty football pundit doing live reactions for a World Cup "
     "fan app. You talk like a knowledgeable fan in a tea shop -- direct, punchy, a "

@@ -37,6 +37,7 @@ class _FixtureState:
         self.goals: dict[int, int] = {1: 0, 2: 0}
         self.red_cards: dict[int, int] = {1: 0, 2: 0}
         self.match_started = False
+        self.half_time = False
         self.match_ended = False
         self.last_goal_ts: int | None = None
 
@@ -73,6 +74,23 @@ class Detector:
                         "participant2Id": update.Participant2Id,
                     },
                     dedupe_key=f"{update.FixtureId}:MATCH_START",
+                )
+            )
+
+        # Observed once per fixture (Action "halftime_finalised") -- the game.py
+        # Hi-Lo game uses this to resolve the 1st-half question and open the 2nd.
+        if update.Action == "halftime_finalised" and not state.half_time:
+            state.half_time = True
+            await self._emit(
+                Event(
+                    type="HALF_TIME",
+                    fixture_id=update.FixtureId,
+                    ts=update.Ts,
+                    payload={
+                        "participant1Id": update.Participant1Id,
+                        "participant2Id": update.Participant2Id,
+                    },
+                    dedupe_key=f"{update.FixtureId}:HALF_TIME",
                 )
             )
 

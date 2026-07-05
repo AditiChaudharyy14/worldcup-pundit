@@ -84,6 +84,7 @@ def main() -> None:
     replay_parser.add_argument("--speed", type=float, default=10.0)
     replay_parser.add_argument("--lang", choices=["en", "ne", "hi"], default="en")
     replay_parser.add_argument("--no-llm", action="store_true")
+    replay_parser.add_argument("--broadcast", action="store_true", help="Push into the real Discord bot/channel")
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -94,7 +95,9 @@ def main() -> None:
         except KeyboardInterrupt:
             pass
     elif args.mode == "replay":
-        asyncio.run(run_replay(args.fixture, args.speed, lang=args.lang, use_llm=not args.no_llm))
+        asyncio.run(
+            run_replay(args.fixture, args.speed, lang=args.lang, use_llm=not args.no_llm, broadcast=args.broadcast)
+        )
 
 
 if __name__ == "__main__":

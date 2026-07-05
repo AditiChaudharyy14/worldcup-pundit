@@ -122,6 +122,8 @@ class Pundit:
             return f"RED_CARD for {ctx.team(event.payload['participant'])}"
         if event.type == "MATCH_START":
             return "MATCH_START"
+        if event.type == "HALF_TIME":
+            return f"HALF_TIME (score at the break {ctx.team1} {ctx.goals[1]}-{ctx.goals[2]} {ctx.team2})"
         if event.type == "MATCH_END":
             return f"MATCH_END (final score {ctx.team1} {ctx.goals[1]}-{ctx.goals[2]} {ctx.team2})"
         if event.type == "ODDS_SWING":
@@ -185,6 +187,8 @@ class Pundit:
             return f"Red card for {ctx.team(event.payload['participant'])}."
         if event.type == "MATCH_START":
             return f"Kickoff! {ctx.team1} vs {ctx.team2} is underway."
+        if event.type == "HALF_TIME":
+            return f"Half time: {ctx.team1} {ctx.goals[1]}-{ctx.goals[2]} {ctx.team2}."
         if event.type == "MATCH_END":
             return f"Full time: {ctx.team1} {ctx.goals[1]}-{ctx.goals[2]} {ctx.team2}."
         if event.type == "ODDS_SWING":
