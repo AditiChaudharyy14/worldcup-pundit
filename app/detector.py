@@ -177,8 +177,9 @@ class Detector:
                     payload={
                         "marketPeriod": update.MarketPeriod,
                         "priceName": price_name,
+                        "fromPct": round(window[0][1], 3),
+                        "toPct": round(pct, 3),
                         "deltaPct": round(delta, 3),
-                        "currentPct": pct,
                     },
                     dedupe_key=(
                         f"{update.FixtureId}:ODDS_SWING:{update.MarketPeriod}:"

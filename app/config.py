@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 APP_DIR = Path(__file__).resolve().parent
@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     odds_swing_threshold_pct: float = 7.0
     odds_swing_window_seconds: int = 600
     goal_odds_dedupe_seconds: int = 60
+
+    # Pundit (see pundit.py). Plain env var name (not TXLINE_APP_-prefixed) so it
+    # matches the Anthropic SDK's own ANTHROPIC_API_KEY convention. Optional at
+    # config-load time -- only Pundit(use_llm=True) requires it, so replay/live
+    # with --no-llm (or code that never touches the pundit) works without it.
+    anthropic_api_key: SecretStr | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
+    pundit_model: str = "claude-sonnet-4-6"
+    pundit_max_tokens: int = 150
+    commentary_batch_window_seconds: int = 60
 
 
 class AppConfig(BaseModel):
