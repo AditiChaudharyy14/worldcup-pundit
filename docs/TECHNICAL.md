@@ -178,6 +178,36 @@ posted it, since storage is shared. This also means a question posted by
 a short-lived `--broadcast` replay keeps working after that process exits,
 as long as `bot.py` is running.
 
+### A single long-lived Postgres connection vs. Neon's free-tier suspend/pooler
+
+The deployed status page started returning 500 partway through a live
+demo session, having worked fine right after deploy. `storage.py`'s
+Postgres backend held one `asyncpg` connection open for the entire
+process lifetime. Reproduced locally against the exact same live Neon
+data first: the render pipeline itself (same query results, same
+`_render_page()` call) worked with a *fresh* connection, which pointed
+away from a code bug in the rendering path and toward the long-lived
+connection specifically. Two real, independent hazards line up with a
+single persistent connection to Neon's free tier:
+
+1. Neon's free-tier compute suspends after a period of inactivity; a
+   connection open across that suspend can go stale, failing every
+   subsequent query for the rest of the process's life rather than just
+   the one request.
+2. The connection string here uses Neon's `-pooler` (PgBouncer,
+   transaction-mode) endpoint. asyncpg caches prepared statements per
+   connection by default, and that cache doesn't survive PgBouncer routing
+   the same logical connection to a different backend Postgres connection
+   -- a well-documented asyncpg+PgBouncer incompatibility.
+
+Fixed by switching to `asyncpg.create_pool()` (so a connection that goes
+stale is quietly replaced rather than reused forever) with
+`statement_cache_size=0` (the standard mitigation for #2). Verified against
+the real Neon database -- pool creation, the full CRUD surface, and the
+exact status-page render call that had been 500ing -- then confirmed live
+on the redeployed instance (`/` and `/health` both `200`, leaderboard
+rendering correctly).
+
 ### Windows console encoding
 
 Nepali/Hindi commentary is Devanagari script; Windows terminals default to
