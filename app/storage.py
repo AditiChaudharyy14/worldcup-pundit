@@ -161,14 +161,25 @@ class Storage:
         self._sqlite_path = str(sqlite_path)
         self._database_url = database_url
         self._is_postgres = bool(database_url)
-        self._conn: Any = None  # aiosqlite.Connection or asyncpg.Connection
+        self._conn: Any = None  # aiosqlite.Connection (SQLite only)
+        self._pool: Any = None  # asyncpg.Pool (Postgres only)
 
     async def connect(self) -> "Storage":
         if self._is_postgres:
             import asyncpg  # imported lazily -- local dev never needs it installed to matter
 
-            self._conn = await asyncpg.connect(self._database_url)
-            await self._conn.execute(_SCHEMA_POSTGRES)
+            # A pool (not a single long-lived connection) so a connection that
+            # goes stale -- e.g. Neon's free tier suspends its compute after
+            # inactivity -- gets quietly replaced instead of failing every
+            # query for the rest of the process's life. statement_cache_size=0
+            # because Neon's connection string here is the "-pooler" (PgBouncer,
+            # transaction-mode) endpoint: asyncpg's prepared-statement cache
+            # doesn't survive being routed to a different backend connection
+            # under that, and is the standard asyncpg+PgBouncer mitigation.
+            self._pool = await asyncpg.create_pool(
+                self._database_url, min_size=1, max_size=5, statement_cache_size=0
+            )
+            await self._pool.execute(_SCHEMA_POSTGRES)
         else:
             self._conn = await aiosqlite.connect(self._sqlite_path)
             await self._migrate_legacy_scaffold()
@@ -192,6 +203,9 @@ class Storage:
             await self._conn.commit()
 
     async def close(self) -> None:
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None
         if self._conn is not None:
             await self._conn.close()
             self._conn = None
@@ -224,21 +238,21 @@ class Storage:
 
     async def _execute(self, sql: str, params: tuple = ()) -> None:
         if self._is_postgres:
-            await self._conn.execute(self._ph(sql), *params)
+            await self._pool.execute(self._ph(sql), *params)
         else:
             await self._conn.execute(sql, params)
             await self._conn.commit()
 
     async def _fetchone(self, sql: str, params: tuple = ()) -> tuple | None:
         if self._is_postgres:
-            row = await self._conn.fetchrow(self._ph(sql), *params)
+            row = await self._pool.fetchrow(self._ph(sql), *params)
             return tuple(row) if row is not None else None
         cursor = await self._conn.execute(sql, params)
         return await cursor.fetchone()
 
     async def _fetchall(self, sql: str, params: tuple = ()) -> list[tuple]:
         if self._is_postgres:
-            rows = await self._conn.fetch(self._ph(sql), *params)
+            rows = await self._pool.fetch(self._ph(sql), *params)
             return [tuple(r) for r in rows]
         cursor = await self._conn.execute(sql, params)
         return await cursor.fetchall()
@@ -254,7 +268,7 @@ class Storage:
             placeholders = ", ".join(f"${i + 1}" for i in range(len(values)))
             conflict = ", ".join(conflict_cols)
             sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO NOTHING RETURNING 1"
-            row = await self._conn.fetchrow(sql, *values)
+            row = await self._pool.fetchrow(sql, *values)
             return row is not None
         placeholders = ", ".join("?" for _ in values)
         sql = f"INSERT OR IGNORE INTO {table} ({col_list}) VALUES ({placeholders})"
@@ -273,7 +287,7 @@ class Storage:
             placeholders = ", ".join(f"${i + 1}" for i in range(len(values)))
             conflict = ", ".join(conflict_cols)
             sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO NOTHING RETURNING id"
-            row = await self._conn.fetchrow(sql, *values)
+            row = await self._pool.fetchrow(sql, *values)
             return row[0] if row is not None else None
         placeholders = ", ".join("?" for _ in values)
         sql = f"INSERT OR IGNORE INTO {table} ({col_list}) VALUES ({placeholders})"
