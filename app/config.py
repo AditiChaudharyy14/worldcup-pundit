@@ -36,6 +36,33 @@ class Settings(BaseSettings):
     credentials_path: Path = REPO_ROOT / "onboarding" / "credentials.json"
     sqlite_path: Path = APP_DIR / "txline.db"
 
+    # Deployment (Phase 5, see docs/DEPLOY.md). When set, both sqlite_path and
+    # credentials_path move under this directory instead -- a host with a
+    # persistent volume mounts it there. Hosts with no persistent disk (e.g.
+    # Render's free tier) instead set DATABASE_URL (Storage then uses
+    # Postgres, see storage.py) and leave DATA_DIR unset.
+    data_dir: Path | None = Field(default=None, validation_alias="DATA_DIR")
+    # Postgres DSN (e.g. a free Neon project). Plain env var name, matching
+    # the platform-agnostic convention most Postgres hosts expect. Storage
+    # uses aiosqlite when this is unset (local dev), asyncpg when it's set.
+    database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
+    # The wallet used for onboarding/subscribe.ts's on-chain subscribe. NOT
+    # needed for normal operation or the on-401 refresh (that's a plain guest
+    # JWT request, no signature -- see txline_auth.py); only wallet_auth.py's
+    # one-time activation flow needs it, and nothing in the running app calls
+    # that automatically (see its docstring for why: activation is one-time
+    # per txSig).
+    wallet_private_key: SecretStr | None = Field(default=None, validation_alias="WALLET_PRIVATE_KEY")
+    # Fallback source for Credentials when credentials_path doesn't exist --
+    # the full contents of a local credentials.json, pasted as one env var.
+    # For hosts with no persistent disk (e.g. Render's free tier): the API
+    # token is long-lived for the whole paid subscription, so deployment
+    # just carries the *existing*, already-activated credentials.json
+    # forward rather than re-activating (which would fail -- see
+    # wallet_auth.py). Never logged; only the parsed jwt/apiToken fields
+    # become SecretStr.
+    credentials_json: str | None = Field(default=None, validation_alias="TXLINE_CREDENTIALS_JSON")
+
     # World Cup 2026, as observed on every real fixture returned during onboarding probing.
     default_competition_id: int = 72
 
@@ -68,6 +95,11 @@ class Settings(BaseSettings):
     # Optional: if set, slash commands sync instantly to this guild instead of
     # up to an hour globally -- set this to "WC Pundit Test"'s guild ID.
     discord_guild_id: int | None = Field(default=None, validation_alias="DISCORD_GUILD_ID")
+    # A permanent (never-expiring) invite link to "WC Pundit Test", for the
+    # status page's "Join the Discord" button (web.py). Not a secret --
+    # create one via Server Settings -> Invites -> Create Invite -> set
+    # expiry to Never.
+    discord_invite_url: str | None = Field(default=None, validation_alias="DISCORD_INVITE_URL")
 
     # Languages broadcast for a fixture nobody has explicitly followed yet
     # (e.g. fresh --broadcast demo runs) -- shows off all three at once.
@@ -93,12 +125,28 @@ class AppConfig(BaseModel):
         return self.credentials.apiBaseUrl.removesuffix("/api")
 
 
+def apply_data_dir(settings: Settings) -> None:
+    """Redirects sqlite_path/credentials_path under DATA_DIR if set (a host
+    with a persistent volume mounts it there). Split out from load_config()
+    so it's applied consistently wherever Settings() is constructed.
+    """
+    if settings.data_dir is not None:
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        settings.sqlite_path = settings.data_dir / "txline.db"
+        settings.credentials_path = settings.data_dir / "credentials.json"
+
+
 def load_config(settings: Settings | None = None) -> AppConfig:
     settings = settings or Settings()
-    if not settings.credentials_path.exists():
+    apply_data_dir(settings)
+    if settings.credentials_path.exists():
+        credentials = Credentials.model_validate_json(settings.credentials_path.read_text())
+    elif settings.credentials_json:
+        credentials = Credentials.model_validate_json(settings.credentials_json)
+    else:
         raise FileNotFoundError(
-            f"No credentials at {settings.credentials_path}. "
-            "Run onboarding first: npx ts-node onboarding/subscribe.ts"
+            f"No credentials at {settings.credentials_path} and TXLINE_CREDENTIALS_JSON is not set. "
+            "Run onboarding first: npx ts-node onboarding/subscribe.ts, "
+            "or set TXLINE_CREDENTIALS_JSON to that file's contents (see docs/DEPLOY.md)."
         )
-    credentials = Credentials.model_validate_json(settings.credentials_path.read_text())
     return AppConfig(settings=settings, credentials=credentials)

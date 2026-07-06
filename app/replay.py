@@ -95,7 +95,7 @@ async def run_replay(
     """
     config = config or load_config()
 
-    async with Storage(config.settings.sqlite_path) as storage:
+    async with Storage(config.settings.sqlite_path, config.settings.database_url) as storage:
         queue: asyncio.Queue[Event] = asyncio.Queue()
         detector = Detector(storage, queue, config.settings)
 

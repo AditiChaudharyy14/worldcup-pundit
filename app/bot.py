@@ -138,7 +138,7 @@ def main() -> None:
         raise SystemExit("DISCORD_BOT_TOKEN is not set. Add it to the repo-root .env (see .env.example).")
 
     async def run() -> None:
-        async with Storage(config.settings.sqlite_path) as storage:
+        async with Storage(config.settings.sqlite_path, config.settings.database_url) as storage:
             bot = PunditBot(config, storage)
             try:
                 await bot.start(config.settings.discord_bot_token.get_secret_value())

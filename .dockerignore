@@ -1,0 +1,29 @@
+# Secrets -- never bake these into the image
+.env
+**/.env
+credentials.json
+**/credentials.json
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+app/txline.db
+
+# Node (onboarding/subscribe.ts's tooling -- not needed at runtime)
+node_modules/
+**/node_modules/
+dist/
+
+# VCS / editor / tooling
+.git/
+.claude/
+.dockerignore
+Dockerfile
+
+# Scratch / logs / local demo output
+*.log
+demo_output.md
+.DS_Store
