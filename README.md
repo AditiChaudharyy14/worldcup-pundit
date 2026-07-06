@@ -16,6 +16,25 @@ whichever the reader picked. Alongside the commentary, a Hi-Lo streak
 mini-game asks "more or fewer than N combined goals this half?" at kickoff
 and half-time, and tracks who's on the best guessing streak.
 
+## Screenshots
+### Screenshot 1: The trilingual commentary in Discord (1st feature)
+<img width="890" height="671" alt="Trilingual commentary" src="https://github.com/user-attachments/assets/df2c5855-ba70-49d0-a6d9-0a0403769a74" />
+*Live trilingual commentary (English / Nepali / Hindi) with real-time scores* 
+
+### Screenshot2 : The Hi-Lo streak game in action
+<img width="843" height="151" alt="Hi-Lo question" src="https://github.com/user-attachments/assets/9650334c-838c-4244-8059-a236cb81e5f3" />
+*Auto-posted Hi-Lo question at kickoff and half-time — no command needed*
+
+<img width="756" height="203" alt="Hi-Lo result" src="https://github.com/user-attachments/assets/ccdcde2b-e899-4620-aba4-91b017d89e7f" /> 
+*Resolved round — streaks tracked on the leaderboard and server records celebrated*
+
+### Screenshot 3: The live status page
+<img width="1418" height="840" alt="Status page" src="https://github.com/user-attachments/assets/fa18efa5-eae2-44c4-95e3-5d5532f6773b" /> 
+*Public status page — live event feed (goals, kickoff, half-time, odds swings) and the Hi-Lo streak leaderboard*
+
+
+
+
 ### Why trilingual, and why Discord
 
 The original plan was Telegram, but Telegram is blocked in Nepal --
