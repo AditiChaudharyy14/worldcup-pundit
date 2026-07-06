@@ -107,6 +107,9 @@ class HiLoGame:
     async def handle_guess(self, interaction: discord.Interaction, question_id: int, guess: str) -> None:
         try:
             recorded = await self._storage.record_guess(question_id, str(interaction.user.id), guess)
+            # Opportunistic, not load-bearing for the guess itself -- only
+            # used later by the web status page's leaderboard.
+            await self._storage.set_user_display_name(str(interaction.user.id), interaction.user.display_name)
         except Exception:  # noqa: BLE001
             logger.exception("Failed to record Hi-Lo guess for question %s", question_id)
             if not interaction.response.is_done():

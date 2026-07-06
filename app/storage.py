@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     external_id TEXT UNIQUE NOT NULL,
     lang TEXT NOT NULL DEFAULT 'en',
+    display_name TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -110,6 +111,7 @@ CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     external_id TEXT UNIQUE NOT NULL,
     lang TEXT NOT NULL DEFAULT 'en',
+    display_name TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -180,12 +182,28 @@ class Storage:
                 self._database_url, min_size=1, max_size=5, statement_cache_size=0
             )
             await self._pool.execute(_SCHEMA_POSTGRES)
+            # Postgres supports ADD COLUMN IF NOT EXISTS natively -- safe to
+            # run unconditionally every connect(), unlike SQLite below.
+            await self._pool.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT")
         else:
             self._conn = await aiosqlite.connect(self._sqlite_path)
             await self._migrate_legacy_scaffold()
             await self._conn.executescript(_SCHEMA_SQLITE)
             await self._conn.commit()
+            await self._ensure_sqlite_display_name_column()
         return self
+
+    async def _ensure_sqlite_display_name_column(self) -> None:
+        """display_name was added after users tables already existed locally
+        (unlike the phase-2 scaffold, this one has real data -- never drop
+        it). SQLite has no ADD COLUMN IF NOT EXISTS, so check first.
+        """
+        assert self._conn is not None
+        cursor = await self._conn.execute("PRAGMA table_info(users)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "display_name" not in columns:
+            await self._conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
+            await self._conn.commit()
 
     async def _migrate_legacy_scaffold(self) -> None:
         """The phase-2 users/subscriptions/streaks tables predate the columns
@@ -352,6 +370,16 @@ class Storage:
         await self._get_or_create_user_id(external_id)
         await self._execute("UPDATE users SET lang = ? WHERE external_id = ?", (lang, external_id))
 
+    async def set_user_display_name(self, external_id: str, display_name: str) -> None:
+        """Recorded opportunistically whenever we have interaction.user
+        handy (currently: Hi-Lo guesses) so the web status page's
+        leaderboard can show a name instead of a raw Discord ID -- Discord
+        mentions (<@id>) already resolve names client-side, so this is only
+        needed off-Discord.
+        """
+        await self._get_or_create_user_id(external_id)
+        await self._execute("UPDATE users SET display_name = ? WHERE external_id = ?", (display_name, external_id))
+
     # -- fixture follow/unfollow --------------------------------------------
 
     async def toggle_subscription(self, external_id: str, fixture_id: int) -> bool:
@@ -503,11 +531,16 @@ class Storage:
         is_new_record = correct and new_best > prior_server_best and new_best > 0
         return new_count, new_best, is_new_record
 
-    async def leaderboard(self, limit: int = 10) -> list[tuple[str, int, int]]:
-        """Top (external_id, current_count, best_count) by best streak."""
+    async def leaderboard(self, limit: int = 10) -> list[tuple[str, str | None, int, int]]:
+        """Top (external_id, display_name, current_count, best_count) by best
+        streak. external_id stays first/unchanged for callers building a
+        Discord mention (<@external_id> already resolves a name client-side);
+        display_name is for callers with nowhere else to get a name from
+        (the web status page).
+        """
         rows = await self._fetchall(
             """
-            SELECT users.external_id, streaks.count, streaks.best_count FROM streaks
+            SELECT users.external_id, users.display_name, streaks.count, streaks.best_count FROM streaks
             JOIN users ON users.id = streaks.user_id
             WHERE streaks.streak_type = 'hilo'
             ORDER BY streaks.best_count DESC, streaks.count DESC
@@ -515,4 +548,4 @@ class Storage:
             """,
             (limit,),
         )
-        return [(row[0], row[1], row[2]) for row in rows]
+        return [(row[0], row[1], row[2], row[3]) for row in rows]

@@ -38,7 +38,7 @@ def _render_page(
     uptime_text: str,
     events_processed: int,
     recent_events: list[dict],
-    leaderboard: list[tuple[str, int, int]],
+    leaderboard: list[tuple[str, str | None, int, int]],
     invite_url: str | None,
     github_url: str,
 ) -> str:
@@ -58,9 +58,9 @@ def _render_page(
     if leaderboard:
         board_html = "\n".join(
             f"<li><span class=\"rank\">{i}.</span> "
-            f'<span class="mono">{html.escape(external_id)}</span> '
+            f'<span class="mono">{html.escape(display_name or external_id)}</span> '
             f'<span class="muted">best streak {best}</span></li>'
-            for i, (external_id, _count, best) in enumerate(leaderboard, start=1)
+            for i, (external_id, display_name, _count, best) in enumerate(leaderboard, start=1)
         )
     else:
         board_html = '<li class="muted">No Hi-Lo streaks yet -- play a round in Discord!</li>'

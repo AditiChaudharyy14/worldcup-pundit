@@ -120,7 +120,7 @@ def register_commands(tree: app_commands.CommandTree, bot) -> None:
             return
         lines = [
             f"**{i}.** <@{external_id}> -- best streak **{best}** (current {count})"
-            for i, (external_id, count, best) in enumerate(rows, start=1)
+            for i, (external_id, _display_name, count, best) in enumerate(rows, start=1)
         ]
         embed = discord.Embed(title="🏆 Hi-Lo Leaderboard", description="\n".join(lines), color=discord.Color.gold())
         await interaction.response.send_message(embed=embed)
